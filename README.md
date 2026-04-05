@@ -60,7 +60,7 @@ oc create secret generic shiftclaw-secrets \
 oc apply -f manifests/
 ```
 
-This creates the namespace, PVC, ConfigMap, Deployment, and Service in one shot.
+This creates the namespace, ServiceAccount, ConfigMap, StatefulSet (with its PVC), NetworkPolicy, PodDisruptionBudget, and Service in one shot.
 
 ### 4 — Verify
 
@@ -74,7 +74,7 @@ oc logs -l app.kubernetes.io/name=shiftclaw -n shiftclaw -f
 On first start, OpenClaw requires manual approval of the Telegram channel pairing. Open a shell into the running pod and run:
 
 ```bash
-oc exec -it deploy/shiftclaw -n shiftclaw -- sh
+oc exec -it shiftclaw-0 -n shiftclaw -- sh
 openclaw pairing approve telegram <PAIRING_CODE>
 ```
 
@@ -89,7 +89,7 @@ ShiftClaw is managed through Telegram — just talk to your bot. No Route or Ing
 If you need local access to the WebSocket gateway (port 18789):
 
 ```bash
-oc port-forward svc/shiftclaw 18789:18789 -n shiftclaw
+oc port-forward pod/shiftclaw-0 18789:18789 -n shiftclaw
 ```
 
 ---
@@ -103,8 +103,7 @@ oc port-forward svc/shiftclaw 18789:18789 -n shiftclaw
 | `manifests/serviceaccount.yaml` | Dedicated ServiceAccount (no default SA token mounted) |
 | `manifests/networkpolicy.yaml` | Default-deny ingress; egress limited to DNS + HTTPS only |
 | `manifests/poddisruptionbudget.yaml` | Signals voluntary-disruption intent to the scheduler |
-| `manifests/deployment.yaml` | Resource limits, probes, security context |
-| `manifests/pvc.yaml` | Storage size and class for the state volume |
+| `manifests/deployment.yaml` | StatefulSet — resource limits, probes, security context, PVC template |
 | `.github/workflows/build.yaml` | OpenClaw version pin and image build settings |
 
 Edit `config/openclaw.json` to change the model, enable/disable channels, or tune agent parameters.
@@ -119,10 +118,10 @@ oc create configmap shiftclaw-config \
   --dry-run=client -o yaml | oc apply -f -
 
 # 2 — Delete the live config so the init container re-seeds it
-oc exec deploy/shiftclaw -n shiftclaw -- rm /var/lib/openclaw/openclaw.json
+oc exec shiftclaw-0 -n shiftclaw -- rm /var/lib/openclaw/openclaw.json
 
 # 3 — Restart
-oc rollout restart deployment/shiftclaw -n shiftclaw
+oc rollout restart statefulset/shiftclaw -n shiftclaw
 ```
 
 ---
@@ -132,7 +131,7 @@ oc rollout restart deployment/shiftclaw -n shiftclaw
 1. Update `OPENCLAW_VERSION` in `.github/workflows/build.yaml`
 2. Update the `image:` tag in `manifests/deployment.yaml`
 3. Push — CI builds and publishes the new image automatically
-4. `oc apply -f manifests/deployment.yaml`
+4. `oc apply -f manifests/deployment.yaml` (or `oc apply -k manifests/`)
 
 ---
 

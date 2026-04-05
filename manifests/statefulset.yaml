@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: shiftclaw
   namespace: shiftclaw
@@ -8,10 +8,7 @@ metadata:
     app.kubernetes.io/version: "2026.4.2"
 spec:
   replicas: 1
-  # ReadWriteOnce PVC requires exactly 1 replica. Use Recreate to avoid two pods
-  # fighting over the PVC during rollouts.
-  strategy:
-    type: Recreate
+  serviceName: shiftclaw
   selector:
     matchLabels:
       app.kubernetes.io/name: shiftclaw
@@ -21,20 +18,11 @@ spec:
         app.kubernetes.io/name: shiftclaw
         app.kubernetes.io/version: "2026.4.2"
     spec:
-      # -----------------------------------------------------------------------
-      # Pod-level security
-      # -----------------------------------------------------------------------
       securityContext:
-        # Refuse to start if the container tries to run as root.
         runAsNonRoot: true
-        # Use the kernel's default seccomp profile — blocks ~50 rarely-used syscalls.
         seccompProfile:
           type: RuntimeDefault
-        # fsGroup is intentionally omitted — OpenShift's restricted-v2 SCC forbids group 0
-        # and assigns an fsGroup from the namespace's allowed range automatically.
-        # kubelet then chowns the PVC to that group; the image's chmod g=u ensures it works.
 
-      # Use the dedicated ServiceAccount (no default SA token, no RBAC rules).
       serviceAccountName: shiftclaw
       automountServiceAccountToken: false
 
@@ -66,27 +54,15 @@ spec:
 
       containers:
         - name: shiftclaw
-          # The image is built and pushed by .github/workflows/build.yaml.
           image: quay.io/daytwo/shiftclaw:latest
           imagePullPolicy: Always
 
-          # -----------------------------------------------------------------------
-          # Container-level security — defense in depth
-          # -----------------------------------------------------------------------
           securityContext:
-            # Never gain more privileges than the process starts with.
             allowPrivilegeEscalation: false
-            # Mount the container's root filesystem read-only.
-            # Writable paths are provided as volumes below (/tmp, /var/lib/openclaw).
             readOnlyRootFilesystem: true
             capabilities:
-              # Drop every Linux capability. OpenClaw does not need any.
               drop:
                 - ALL
-            # OpenShift: do NOT set runAsUser here — the SCC assigns it from the
-            # namespace UID range. The image USER 1001 applies on plain Kubernetes.
-            # Uncomment the next line ONLY for plain Kubernetes if you want a fixed UID:
-            # runAsUser: 1001
 
           ports:
             - name: gateway
@@ -97,18 +73,13 @@ spec:
             #   containerPort: 18791
             #   protocol: TCP
 
-          # -----------------------------------------------------------------------
-          # Environment
-          # -----------------------------------------------------------------------
           envFrom:
             # OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, and OPENCLAW_GATEWAY_TOKEN come from here.
-            # Create with: kubectl create secret generic shiftclaw-secrets --from-env-file=.env -n shiftclaw
+            # Create with: oc create secret generic shiftclaw-secrets --from-env-file=.env -n shiftclaw
             - secretRef:
                 name: shiftclaw-secrets
 
           env:
-            # Official state dir pattern from Hetzner docs — XDG_CONFIG_HOME controls
-            # where openclaw stores its config, auth profiles, and agent state.
             - name: XDG_CONFIG_HOME
               value: /var/lib/openclaw
             - name: OPENCLAW_CONFIG_PATH
@@ -117,13 +88,9 @@ spec:
               value: production
             - name: NPM_CONFIG_CACHE
               value: /tmp/.npm
-            # HOME must be writable; with readOnlyRootFilesystem the default /opt/app-root/src is read-only.
             - name: HOME
               value: /var/lib/openclaw
 
-          # -----------------------------------------------------------------------
-          # Resource limits
-          # -----------------------------------------------------------------------
           resources:
             requests:
               cpu: 100m
@@ -133,9 +100,6 @@ spec:
               cpu: "1"
               memory: 1Gi
 
-          # -----------------------------------------------------------------------
-          # Probes
-          # -----------------------------------------------------------------------
           startupProbe:
             exec:
               command: ["openclaw", "--version"]
@@ -148,9 +112,6 @@ spec:
             periodSeconds: 30
             failureThreshold: 3
 
-          # -----------------------------------------------------------------------
-          # Volume mounts
-          # -----------------------------------------------------------------------
           volumeMounts:
             # PVC: persistent state + config (both writable — OpenClaw writes temp files)
             - name: shiftclaw-state
@@ -159,13 +120,7 @@ spec:
             - name: tmp
               mountPath: /tmp
 
-      # -----------------------------------------------------------------------
-      # Volumes
-      # -----------------------------------------------------------------------
       volumes:
-        - name: shiftclaw-state
-          persistentVolumeClaim:
-            claimName: shiftclaw-state
         - name: shiftclaw-config
           configMap:
             name: shiftclaw-config
@@ -173,3 +128,14 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 256Mi
+
+  volumeClaimTemplates:
+    - metadata:
+        name: shiftclaw-state
+        labels:
+          app.kubernetes.io/name: shiftclaw
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi

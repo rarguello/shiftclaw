@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/component: gateway
 spec:
   type: ClusterIP
+  clusterIP: None
   selector:
     app.kubernetes.io/name: shiftclaw
   ports:
@@ -21,5 +22,5 @@ spec:
     #   targetPort: browser
     #   protocol: TCP
 
-# Access via port-forward (no Route / Ingress needed for Telegram-managed bot):
-#   kubectl port-forward svc/shiftclaw 18789:18789 -n shiftclaw
+# For local access, port-forward directly to the pod (not the service):
+#   oc port-forward pod/shiftclaw-0 18789:18789 -n shiftclaw

@@ -5,11 +5,10 @@ resources:
   - namespace.yaml
   - serviceaccount.yaml
   - configmap.yaml
-  - pvc.yaml
   - networkpolicy.yaml
   - poddisruptionbudget.yaml
   - service.yaml
-  - deployment.yaml
+  - statefulset.yaml
   # secret.yaml is intentionally excluded — never commit real credentials.
   # Create the Secret imperatively before applying:
   #   kubectl create secret generic shiftclaw-secrets \
