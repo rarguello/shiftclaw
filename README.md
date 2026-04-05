@@ -1,11 +1,10 @@
+# ShiftClaw
+
 <p align="center">
   <img src="shiftclaw.png" alt="ShiftClaw" width="400">
 </p>
 
-# ShiftClaw
-
-> OpenClaw deployment for OpenShift (and plain Kubernetes) —
-> UBI 10 · Node.js 24 · OpenRouter · Telegram
+> OpenClaw deployment for OpenShift: UBI 10 · Node.js 24 · OpenRouter · Telegram
 
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.2-orange)](https://github.com/openclaw/openclaw)
 [![UBI 10](https://img.shields.io/badge/Red%20Hat%20UBI-10-EE0000?logo=redhat&logoColor=white)](https://catalog.redhat.com/software/containers/ubi10/nodejs-24-minimal)
@@ -13,7 +12,7 @@
 [![OpenShift](https://img.shields.io/badge/OpenShift-compatible-EE0000?logo=redhatopenshift&logoColor=white)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-This repository contains everything needed to run [OpenClaw](https://github.com/openclaw/openclaw) as a Pod on OpenShift or any Kubernetes cluster. The custom container image is built on **Red Hat UBI 10 + Node.js 24** (not Debian, not Ubuntu), hardened by default, and published to GHCR via GitHub Actions.
+This repository contains everything needed to run [OpenClaw](https://github.com/openclaw/openclaw) as a Pod on an OpenShift/OKD cluster. The custom container image is built on **Red Hat UBI 10 + Node.js 24** (not Debian, not Ubuntu), hardened by default, and published to GHCR via GitHub Actions.
 
 The deployment is managed through Telegram — no Ingress or Route is needed.
 
