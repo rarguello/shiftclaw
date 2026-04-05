@@ -22,15 +22,14 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-
       serviceAccountName: shiftclaw
       automountServiceAccountToken: false
-
       # Init container copies openclaw.json from the ConfigMap (read-only) into the
       # PVC (writable) on every start, so OpenClaw can write temp files alongside it.
       initContainers:
         - name: seed-config
-          image: quay.io/rarguello/shiftclaw:latest
+          image: ghcr.io/rarguello/shiftclaw:2026.4.2
+          imagePullPolicy: Always
           command: ["sh", "-c", "[ -f /var/lib/openclaw/openclaw.json ] || cp /run/config/openclaw.json /var/lib/openclaw/openclaw.json"]
           securityContext:
             allowPrivilegeEscalation: false
@@ -51,19 +50,16 @@ spec:
             - name: shiftclaw-config
               mountPath: /run/config
               readOnly: true
-
       containers:
         - name: shiftclaw
-          image: quay.io/rarguello/shiftclaw:latest
+          image: ghcr.io/rarguello/shiftclaw:2026.4.2
           imagePullPolicy: Always
-
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
-
           ports:
             - name: gateway
               containerPort: 18789
@@ -72,13 +68,11 @@ spec:
             # - name: browser
             #   containerPort: 18791
             #   protocol: TCP
-
           envFrom:
             # OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, and OPENCLAW_GATEWAY_TOKEN come from here.
             # Create with: oc create secret generic shiftclaw --from-env-file=.env -n shiftclaw
             - secretRef:
                 name: shiftclaw
-
           env:
             - name: XDG_CONFIG_HOME
               value: /var/lib/openclaw
@@ -90,7 +84,6 @@ spec:
               value: /tmp/.npm
             - name: HOME
               value: /var/lib/openclaw
-
           resources:
             requests:
               cpu: 100m
@@ -99,7 +92,6 @@ spec:
               # Raise cpu/memory if you enable browser automation or heavy tool use.
               cpu: "1"
               memory: 1Gi
-
           startupProbe:
             exec:
               command: ["openclaw", "--version"]
@@ -119,7 +111,6 @@ spec:
             # emptyDir: /tmp must be writable even with readOnlyRootFilesystem: true
             - name: tmp
               mountPath: /tmp
-
       volumes:
         - name: shiftclaw-config
           configMap:
@@ -128,7 +119,6 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 256Mi
-
   volumeClaimTemplates:
     - metadata:
         name: shiftclaw-state
