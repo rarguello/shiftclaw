@@ -56,7 +56,6 @@ RUN mkdir -p /var/lib/openclaw \
 USER 1001
 
 ENV OPENCLAW_VERSION=${OPENCLAW_VERSION} \
-    # XDG_CONFIG_HOME tells openclaw where to store its state (official pattern from Hetzner docs).
     XDG_CONFIG_HOME=/var/lib/openclaw \
     OPENCLAW_CONFIG_PATH=/var/lib/openclaw/openclaw.json \
     NODE_ENV=production \
