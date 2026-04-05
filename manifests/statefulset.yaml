@@ -84,6 +84,12 @@ spec:
               value: /tmp/.npm
             - name: HOME
               value: /var/lib/openclaw
+            # Discard shell history — prevents .bash_history from accumulating
+            # on the PVC when exec-ing into the container.
+            - name: HISTFILE
+              value: /dev/null
+            - name: HISTSIZE
+              value: "0"
           resources:
             requests:
               cpu: 100m
