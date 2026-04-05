@@ -18,17 +18,22 @@ spec:
   ingress: []
 
   # -----------------------------------------------------------------------
-  # Egress — OpenClaw needs only two things:
-  #   1. DNS (UDP/TCP 53) — to resolve openrouter.ai, api.telegram.org, etc.
-  #   2. HTTPS (TCP 443) — to reach OpenRouter and Telegram APIs.
-  # Everything else (cluster API, other pods, raw HTTP) is denied.
+  # Egress
   # -----------------------------------------------------------------------
   egress:
-    - ports:
-        - port: 53
+    # DNS — OpenShift OVN-Kubernetes requires an explicit rule targeting the
+    # openshift-dns namespace. DNS pods listen on port 5353
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+            podSelector:
+              matchLabels:
+                app: dns
+      ports:
+        - port: 5353
           protocol: UDP
-        - port: 53
-          protocol: TCP
+    # HTTPS — OpenRouter and Telegram APIs.
     - ports:
         - port: 443
           protocol: TCP
