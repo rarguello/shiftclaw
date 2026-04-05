@@ -34,7 +34,7 @@ The deployment is managed through Telegram — no Ingress or Route is needed.
 
 Push to `main` (or tag a release) and GitHub Actions will build the image and publish it to `ghcr.io/rarguello/shiftclaw`. No manual `podman build` needed.
 
-Then update the image reference in `manifests/deployment.yaml`:
+Then update the image reference in `manifests/statefulset.yaml`:
 
 ```yaml
 image: ghcr.io/rarguello/shiftclaw:2026.4.2
@@ -105,7 +105,7 @@ oc port-forward pod/shiftclaw-0 18789:18789 -n shiftclaw
 | `manifests/serviceaccount.yaml` | Dedicated ServiceAccount (no default SA token mounted) |
 | `manifests/networkpolicy.yaml` | Default-deny ingress; egress limited to DNS + HTTPS only |
 | `manifests/poddisruptionbudget.yaml` | Signals voluntary-disruption intent to the scheduler |
-| `manifests/deployment.yaml` | StatefulSet — resource limits, probes, security context, PVC template |
+| `manifests/statefulset.yaml` | StatefulSet — resource limits, probes, security context, PVC template |
 | `.github/workflows/build.yaml` | OpenClaw version pin and image build settings |
 
 Edit `config/openclaw.json` to change the model, enable/disable channels, or tune agent parameters.
@@ -131,9 +131,9 @@ oc rollout restart statefulset/shiftclaw -n shiftclaw
 ## Upgrading OpenClaw
 
 1. Update `OPENCLAW_VERSION` in `.github/workflows/build.yaml`
-2. Update the `image:` tag in `manifests/deployment.yaml`
+2. Update the `image:` tag in `manifests/statefulset.yaml`
 3. Push — CI builds and publishes the new image automatically
-4. `oc apply -f manifests/deployment.yaml` (or `oc apply -k manifests/`)
+4. `oc apply -f manifests/statefulset.yaml` (or `oc apply -k manifests/`)
 
 ---
 
