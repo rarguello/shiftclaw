@@ -30,7 +30,7 @@ spec:
       # PVC (writable) on every start, so OpenClaw can write temp files alongside it.
       initContainers:
         - name: seed-config
-          image: quay.io/daytwo/shiftclaw:latest
+          image: quay.io/rarguello/shiftclaw:latest
           command: ["sh", "-c", "[ -f /var/lib/openclaw/openclaw.json ] || cp /run/config/openclaw.json /var/lib/openclaw/openclaw.json"]
           securityContext:
             allowPrivilegeEscalation: false
@@ -54,7 +54,7 @@ spec:
 
       containers:
         - name: shiftclaw
-          image: quay.io/daytwo/shiftclaw:latest
+          image: quay.io/rarguello/shiftclaw:latest
           imagePullPolicy: Always
 
           securityContext:
@@ -75,9 +75,9 @@ spec:
 
           envFrom:
             # OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, and OPENCLAW_GATEWAY_TOKEN come from here.
-            # Create with: oc create secret generic shiftclaw-secrets --from-env-file=.env -n shiftclaw
+            # Create with: oc create secret generic shiftclaw --from-env-file=.env -n shiftclaw
             - secretRef:
-                name: shiftclaw-secrets
+                name: shiftclaw
 
           env:
             - name: XDG_CONFIG_HOME

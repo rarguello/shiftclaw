@@ -11,6 +11,4 @@ resources:
   - statefulset.yaml
   # secret.yaml is intentionally excluded — never commit real credentials.
   # Create the Secret imperatively before applying:
-  #   kubectl create secret generic shiftclaw-secrets \
-  #     --from-env-file=.env \
-  #     --namespace=shiftclaw
+  #   kubectl create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
