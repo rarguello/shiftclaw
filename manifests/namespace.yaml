@@ -4,4 +4,3 @@ metadata:
   name: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
-    app.kubernetes.io/managed-by: kubectl
