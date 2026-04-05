@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="shiftclaw.png" alt="ShiftClaw" width="200">
+</p>
+
 # 🦞 ShiftClaw
 
 > OpenClaw deployment for OpenShift (and plain Kubernetes) —
@@ -49,9 +53,7 @@ OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)
 Apply it to the cluster:
 
 ```bash
-oc create secret generic shiftclaw-secrets \
-  --from-env-file=.env \
-  --namespace=shiftclaw
+oc create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
 ```
 
 ### 3 — Apply the manifests
