@@ -27,7 +27,7 @@ spec:
       # Init container copies openclaw.json from the ConfigMap (read-only) into the
       # PVC (writable) on every start, so OpenClaw can write temp files alongside it.
       initContainers:
-        - name: seed-config
+        - name: init-config
           image: ghcr.io/rarguello/shiftclaw:2026.4.2
           imagePullPolicy: Always
           command: ["sh", "-c", "[ -f /var/lib/openclaw/openclaw.json ] || cp /run/config/openclaw.json /var/lib/openclaw/openclaw.json"]
