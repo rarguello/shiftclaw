@@ -32,12 +32,12 @@ The deployment is managed through Telegram — no Ingress or Route is needed.
 
 ### 1 — Build and push the image
 
-Push to `main` (or tag a release) and GitHub Actions will build the image and publish it to `ghcr.io/<your-org>/shiftclaw`. No manual `podman build` needed.
+Push to `main` (or tag a release) and GitHub Actions will build the image and publish it to `ghcr.io/rarguello/shiftclaw`. No manual `podman build` needed.
 
 Then update the image reference in `manifests/deployment.yaml`:
 
 ```yaml
-image: ghcr.io/YOUR_GITHUB_USERNAME/shiftclaw:2026.4.2
+image: ghcr.io/rarguello/shiftclaw:2026.4.2
 ```
 
 ### 2 — Create the Secret
