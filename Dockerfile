@@ -67,9 +67,4 @@ ENV OPENCLAW_VERSION=${OPENCLAW_VERSION} \
 
 EXPOSE 18789
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD openclaw --version > /dev/null 2>&1 || exit 1
-
-# --allow-unconfigured: start the gateway even if gateway.mode is not set in config.
-# This is the official startup pattern from the Hetzner deployment docs.
 ENTRYPOINT ["openclaw", "gateway", "--allow-unconfigured"]
