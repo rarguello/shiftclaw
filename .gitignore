@@ -1,0 +1,26 @@
+# Secrets — NEVER commit these
+.env
+.env.*
+*.env
+!.env.example
+
+# Real secret manifests (use secret.yaml.template instead)
+manifests/secret.yaml
+
+# npm
+node_modules/
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Build artifacts
+dist/
+build/

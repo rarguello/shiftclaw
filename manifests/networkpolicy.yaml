@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shiftclaw
+  namespace: shiftclaw
+  labels:
+    app.kubernetes.io/name: shiftclaw
+    app.kubernetes.io/component: network
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: shiftclaw
+
+  # -----------------------------------------------------------------------
+  # Ingress — allow nothing from outside the cluster.
+  # The only access path is kubectl port-forward (bypasses NetworkPolicy).
+  # -----------------------------------------------------------------------
+  ingress: []
+
+  # -----------------------------------------------------------------------
+  # Egress — OpenClaw needs only two things:
+  #   1. DNS (UDP/TCP 53) — to resolve openrouter.ai, api.telegram.org, etc.
+  #   2. HTTPS (TCP 443) — to reach OpenRouter and Telegram APIs.
+  # Everything else (cluster API, other pods, raw HTTP) is denied.
+  # -----------------------------------------------------------------------
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - ports:
+        - port: 443
+          protocol: TCP
+
+  policyTypes:
+    - Ingress
+    - Egress

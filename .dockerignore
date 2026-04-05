@@ -1,0 +1,27 @@
+# Never bake secrets into the image
+.env
+.env.*
+*.env
+
+# Git internals (not needed in image)
+.git
+.gitignore
+
+# CI/CD — not needed in image
+.github
+
+# Kubernetes manifests — not needed in image
+manifests/
+
+# Editor artifacts
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# npm debug logs
+npm-debug.log*

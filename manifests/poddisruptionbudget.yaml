@@ -1,0 +1,18 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: shiftclaw
+  namespace: shiftclaw
+  labels:
+    app.kubernetes.io/name: shiftclaw
+    app.kubernetes.io/component: availability
+spec:
+  # Single-replica deployment — ensure at least 0 pods are available during
+  # voluntary disruptions (node drain, rolling node upgrades). This does NOT
+  # block disruptions but it signals intent to the cluster scheduler and
+  # integrates with OpenShift MachineConfigPool drain logic.
+  # Change to maxUnavailable: 0 if you want to block voluntary evictions entirely.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shiftclaw

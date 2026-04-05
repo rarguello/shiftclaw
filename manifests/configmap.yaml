@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shiftclaw-config
+  namespace: shiftclaw
+  labels:
+    app.kubernetes.io/name: shiftclaw
+    app.kubernetes.io/component: config
+data:
+  # Non-sensitive OpenClaw configuration.
+  # Sensitive values (API keys, tokens) MUST go in the Secret, not here.
+  # Regenerate with: kubectl create configmap shiftclaw-config \
+  #   --from-file=openclaw.json=config/openclaw.json \
+  #   --namespace=shiftclaw --dry-run=client -o yaml | kubectl apply -f -
+  openclaw.json: |
+    {
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "openrouter": {
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "apiKey": "${OPENROUTER_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              { "id": "google/gemini-2.5-pro",         "name": "Gemini 2.5 Pro"         },
+              { "id": "anthropic/claude-opus-4",        "name": "Claude Opus 4"          },
+              { "id": "anthropic/claude-sonnet-4-5",    "name": "Claude Sonnet 4.5"      },
+              { "id": "meta-llama/llama-4-maverick",    "name": "Llama 4 Maverick"       },
+              { "id": "openrouter/free", "name": "Free (auto-selected by OpenRouter)" }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "model": {
+            "primary": "openrouter/free"
+          }
+        }
+      },
+      "channels": {
+        "telegram": {
+          "enabled": true
+        }
+      }
+    }

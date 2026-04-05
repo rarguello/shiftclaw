@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shiftclaw
+  namespace: shiftclaw
+  labels:
+    app.kubernetes.io/name: shiftclaw
+    app.kubernetes.io/component: gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: shiftclaw
+  ports:
+    - name: gateway
+      port: 18789
+      targetPort: gateway
+      protocol: TCP
+    # Uncomment if browser automation (headless Chrome) is needed:
+    # - name: browser
+    #   port: 18791
+    #   targetPort: browser
+    #   protocol: TCP
+
+# Access via port-forward (no Route / Ingress needed for Telegram-managed bot):
+#   kubectl port-forward svc/shiftclaw 18789:18789 -n shiftclaw
