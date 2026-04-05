@@ -131,6 +131,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL
+          trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF to GitHub Security tab
         if: always()
