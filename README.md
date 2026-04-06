@@ -6,7 +6,7 @@
 
 > OpenClaw deployment for OpenShift: UBI 10 · Node.js 24 · OpenRouter · Telegram
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.2-orange)](https://github.com/openclaw/openclaw)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.5-orange)](https://github.com/openclaw/openclaw)
 [![UBI 10](https://img.shields.io/badge/Red%20Hat%20UBI-10-EE0000?logo=redhat&logoColor=white)](https://catalog.redhat.com/software/containers/ubi10/nodejs-24-minimal)
 [![Node.js](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![OpenShift](https://img.shields.io/badge/OpenShift-compatible-EE0000?logo=redhatopenshift&logoColor=white)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
@@ -36,7 +36,7 @@ Push to `main` (or tag a release) and GitHub Actions will build the image and pu
 Then update the image reference in `manifests/statefulset.yaml`:
 
 ```yaml
-image: ghcr.io/rarguello/shiftclaw:2026.4.2
+image: ghcr.io/rarguello/shiftclaw:2026.4.5
 ```
 
 ### 2 — Create the Secret

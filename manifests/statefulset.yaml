@@ -5,7 +5,7 @@ metadata:
   namespace: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
-    app.kubernetes.io/version: "2026.4.2"
+    app.kubernetes.io/version: "2026.4.5"
 spec:
   replicas: 1
   serviceName: shiftclaw
@@ -16,7 +16,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: shiftclaw
-        app.kubernetes.io/version: "2026.4.2"
+        app.kubernetes.io/version: "2026.4.5"
     spec:
       securityContext:
         runAsNonRoot: true
@@ -28,7 +28,7 @@ spec:
       # PVC (writable) on every start, so OpenClaw can write temp files alongside it.
       initContainers:
         - name: init-config
-          image: ghcr.io/rarguello/shiftclaw:2026.4.2
+          image: ghcr.io/rarguello/shiftclaw:2026.4.5
           imagePullPolicy: Always
           command: ["sh", "-c", "[ -f /var/lib/openclaw/openclaw.json ] || cp /run/config/openclaw.json /var/lib/openclaw/openclaw.json"]
           securityContext:
@@ -52,7 +52,7 @@ spec:
               readOnly: true
       containers:
         - name: shiftclaw
-          image: ghcr.io/rarguello/shiftclaw:2026.4.2
+          image: ghcr.io/rarguello/shiftclaw:2026.4.5
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
