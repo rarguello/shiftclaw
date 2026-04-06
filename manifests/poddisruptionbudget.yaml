@@ -2,7 +2,6 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: shiftclaw
-  namespace: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
     app.kubernetes.io/component: availability

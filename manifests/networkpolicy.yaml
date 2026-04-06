@@ -2,7 +2,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: shiftclaw
-  namespace: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
     app.kubernetes.io/component: network
@@ -13,7 +12,7 @@ spec:
 
   # -----------------------------------------------------------------------
   # Ingress — allow nothing from outside the cluster.
-  # The only access path is kubectl port-forward (bypasses NetworkPolicy).
+  # The only access path is oc port-forward (bypasses NetworkPolicy).
   # -----------------------------------------------------------------------
   ingress: []
 

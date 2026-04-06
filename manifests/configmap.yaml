@@ -2,16 +2,15 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: shiftclaw-config
-  namespace: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
     app.kubernetes.io/component: config
 data:
   # Non-sensitive OpenClaw configuration.
   # Sensitive values (API keys, tokens) MUST go in the Secret, not here.
-  # Regenerate with: kubectl create configmap shiftclaw-config \
+  # Regenerate with: oc create configmap shiftclaw-config \
   #   --from-file=openclaw.json=config/openclaw.json \
-  #   --namespace=shiftclaw --dry-run=client -o yaml | kubectl apply -f -
+  #   --namespace=shiftclaw --dry-run=client -o yaml | oc apply -f -
   openclaw.json: |
     {
       "models": {
