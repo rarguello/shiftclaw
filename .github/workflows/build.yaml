@@ -121,16 +121,22 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          # Scan by digest for exact reproducibility.
           image-ref: ${{ needs.build.outputs.image-ref }}
           format: sarif
           output: trivy-results.sarif
-          # Only fail the build on CRITICAL CVEs — HIGH findings in transitive
-          # npm deps (openclaw upstream) are reported but do not block the build.
-          exit-code: "1"
+          exit-code: "0"
           ignore-unfixed: true
           vuln-type: os,library
-          severity: CRITICAL
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Fail on CRITICAL CVEs only
+        run: |
+          trivy image \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --pkg-types os,library \
+            --severity CRITICAL \
+            ${{ needs.build.outputs.image-ref }}
 
       - name: Upload Trivy SARIF to GitHub Security tab
         if: always()
