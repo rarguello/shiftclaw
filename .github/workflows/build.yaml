@@ -134,13 +134,14 @@ jobs:
 
       - name: Show Trivy findings
         if: failure()
-        run: cat trivy-results.sarif | python3 -c "
-        import json,sys
-        d=json.load(sys.stdin)
-        for r in d.get('runs',[]):
-          for res in r.get('results',[]):
-            print(res.get('ruleId'), res.get('message',{}).get('text','')[:120])
-        "
+        run: |
+          python3 -c "
+          import json,sys
+          d=json.load(open('trivy-results.sarif'))
+          for r in d.get('runs',[]):
+            for res in r.get('results',[]):
+              print(res.get('ruleId'), res.get('message',{}).get('text','')[:120])
+          "
 
       - name: Upload Trivy SARIF to GitHub Security tab
         if: always()
