@@ -1,0 +1,26 @@
+[Unit]
+Description=ShiftClaw (OpenClaw on Podman)
+After=network-online.target
+
+[Container]
+Image=ghcr.io/rarguello/shiftclaw:2026.4.5
+ContainerName=shiftclaw
+
+EnvironmentFile=%h/.config/shiftclaw/env
+Environment=XDG_CONFIG_HOME=/var/lib/openclaw
+Environment=OPENCLAW_CONFIG_PATH=/var/lib/openclaw/openclaw.json
+Environment=NODE_ENV=production
+Environment=NPM_CONFIG_CACHE=/tmp/.npm
+Environment=HOME=/var/lib/openclaw
+
+Volume=%h/.local/share/shiftclaw:/var/lib/openclaw:Z
+Tmpfs=/tmp
+
+PublishPort=18789:18789
+UserNS=keep-id:uid=1001,gid=1001
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

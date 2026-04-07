@@ -153,6 +153,175 @@ The container image and Pod spec follow a secure-by-default posture:
 
 ---
 
+## Running as a systemd user service (Quadlet)
+
+This is the recommended way to run ShiftClaw persistently on a Linux desktop or server — no OpenShift required, no root required.
+
+Quadlet is a Podman feature (4.4+) that lets systemd manage containers directly. You write a `.container` file and systemd handles start, stop, and restart.
+
+### Prerequisites
+
+Same as the local Podman section below: an OpenRouter API key, a Telegram bot token, and Podman installed. No `sudo` needed for any of these steps.
+
+### 1 — Seed the state directory (one-time)
+
+```bash
+mkdir -p ~/.local/share/shiftclaw
+cp config/openclaw.json ~/.local/share/shiftclaw/openclaw.json
+```
+
+OpenClaw will manage this file at runtime. You only need to copy it once — if the file already exists it will not be overwritten.
+
+### 2 — Create the env file (one-time)
+
+```bash
+mkdir -p ~/.config/shiftclaw
+cp .env.example ~/.config/shiftclaw/env
+```
+
+Open `~/.config/shiftclaw/env` and fill in your real values. This file lives outside the project directory so there is no risk of accidentally committing it.
+
+### 3 — Install the Quadlet file
+
+```bash
+mkdir -p ~/.config/containers/systemd
+cp shiftclaw.container ~/.config/containers/systemd/
+```
+
+### 4 — Enable linger
+
+Linger allows your user services to start at boot and keep running after you log out. Run this as your regular user — no `sudo`:
+
+```bash
+loginctl enable-linger
+```
+
+### 5 — Start the service
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now shiftclaw
+```
+
+### Useful commands
+
+```bash
+# Follow logs
+journalctl --user -u shiftclaw -f
+
+# Approve the Telegram pairing (first start only)
+podman exec shiftclaw openclaw pairing approve telegram <PAIRING_CODE>
+
+# Stop / restart
+systemctl --user stop shiftclaw
+systemctl --user restart shiftclaw
+```
+
+---
+
+## Testing locally with Podman
+
+You don't need an OpenShift cluster to try ShiftClaw. This section walks through everything from scratch.
+
+### Prerequisites
+
+**1. OpenRouter API key**
+
+OpenRouter gives the bot access to AI models (Gemini, Claude, Llama, etc.).
+
+1. Create a free account at [openrouter.ai](https://openrouter.ai)
+2. Go to **Keys** → **Create key**
+3. Copy the key — it starts with `sk-or-`
+
+**2. Telegram bot token**
+
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot`
+3. Choose a display name (e.g. `My ShiftClaw Bot`) and a username ending in `bot` (e.g. `myshiftclaw_bot`)
+4. BotFather replies with a token like `123456789:ABCdef...` — copy it
+
+**3. Podman**
+
+Install Podman for your OS: [podman.io/docs/installation](https://podman.io/docs/installation)
+
+---
+
+### 1 — Create your `.env` file
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and replace the placeholder values:
+
+```
+OPENROUTER_API_KEY=sk-or-...
+TELEGRAM_BOT_TOKEN=123456789:ABCdef...
+OPENCLAW_GATEWAY_TOKEN=any-random-string
+```
+
+Each variable is explained in the `.env.example` file.
+
+---
+
+### 2 — Build the image locally (optional)
+
+If you want to test your own code changes instead of the published image:
+
+```bash
+podman build -t localhost/shiftclaw:dev .
+```
+
+Skip this step if you just want to run the published image.
+
+---
+
+### 3 — Run the container
+
+```bash
+# Using the published image:
+./run.sh
+
+# Using your locally built image:
+./run.sh localhost/shiftclaw:dev
+```
+
+The script:
+- Seeds `~/.local/share/shiftclaw/` with `config/openclaw.json` on the first run
+- Mounts that directory persistently so state survives restarts
+- Loads your secrets from `.env`
+- Exposes the gateway on `http://localhost:18789`
+
+On first run Podman will pull the image — this takes a minute. After that you should see log lines ending with `[gateway] ready`.
+
+---
+
+### 4 — Approve the Telegram pairing
+
+The first time the bot starts it prints a pairing code in the logs:
+
+```
+[telegram] pairing code: 123456
+```
+
+Approve it by running this in a second terminal (container must be running):
+
+```bash
+podman exec shiftclaw openclaw pairing approve telegram 123456
+```
+
+The approval is saved to `~/.local/share/shiftclaw/` and is not needed again after a restart.
+
+---
+
+### 5 — Talk to your bot
+
+Open Telegram, find the bot you created with BotFather, and send it a message. That's it.
+
+To stop the container press `Ctrl+C` in the terminal where `run.sh` is running.
+
+---
+
 ## License
 
 MIT — same as [OpenClaw upstream](https://github.com/openclaw/openclaw).
