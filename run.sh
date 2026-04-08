@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.4.5}"
+IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.4.8}"
 CONTAINER_NAME="shiftclaw"
 STATE_DIR="$HOME/.local/share/shiftclaw"
 ENV_FILE="$(dirname "$0")/.env"
@@ -36,7 +36,7 @@ echo "Starting $CONTAINER_NAME ($IMAGE)..."
 exec podman run \
   --name "$CONTAINER_NAME" \
   --replace \
-  --rm \
+  --restart=on-failure \
   --env-file "$ENV_FILE" \
   --env XDG_CONFIG_HOME=/var/lib/openclaw \
   --env OPENCLAW_CONFIG_PATH=/var/lib/openclaw/openclaw.json \

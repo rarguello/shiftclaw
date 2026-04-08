@@ -6,7 +6,7 @@
 
 > OpenClaw deployment for OpenShift: UBI 10 · Node.js 24 · OpenRouter · Telegram
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.5-orange)](https://github.com/openclaw/openclaw)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.8-orange)](https://github.com/openclaw/openclaw)
 [![UBI 10](https://img.shields.io/badge/Red%20Hat%20UBI-10-EE0000?logo=redhat&logoColor=white)](https://catalog.redhat.com/software/containers/ubi10/nodejs-24-minimal)
 [![Node.js](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![OpenShift](https://img.shields.io/badge/OpenShift-compatible-EE0000?logo=redhatopenshift&logoColor=white)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
@@ -36,7 +36,7 @@ Push to `main` (or tag a release) and GitHub Actions will build the image and pu
 Then update the image reference in `manifests/statefulset.yaml`:
 
 ```yaml
-image: ghcr.io/rarguello/shiftclaw:2026.4.5
+image: ghcr.io/rarguello/shiftclaw:2026.4.8
 ```
 
 ### 2 — Create the Secret
@@ -216,6 +216,38 @@ podman exec shiftclaw openclaw pairing approve telegram <PAIRING_CODE>
 systemctl --user stop shiftclaw
 systemctl --user restart shiftclaw
 ```
+
+---
+
+## Using OpenAI Codex (ChatGPT subscription, no API key)
+
+If you have a ChatGPT Plus, Pro, or Team subscription you can use OpenAI Codex directly — no OpenAI API key or per-token billing required. OpenClaw authenticates via OAuth using your existing ChatGPT account.
+
+### 1 — Log in
+
+Run this inside the container (it must be running):
+
+```bash
+podman exec -it shiftclaw openclaw models auth login --provider openai-codex
+```
+
+OpenClaw prints an OAuth URL. Open it in your browser, log in with your ChatGPT account, and authorize the app. The browser will then redirect to a `http://localhost:1455/...` URL — copy that full URL from the address bar and paste it back into the terminal where you ran the `podman exec` command. The credentials are saved to your state directory and persist across restarts — you only need to do this once.
+
+### 2 — Set Codex as the default model
+
+```bash
+podman exec -it shiftclaw openclaw models set openai-codex/gpt-5.4
+```
+
+### 3 — Verify
+
+```bash
+podman exec -it shiftclaw openclaw models status --plain
+```
+
+It should show `openai-codex/gpt-5.4` as the active model. Send a message to your Telegram bot to confirm.
+
+> **Note:** OpenClaw manages the live config file at runtime. The `config/openclaw.json` in this repo is only used to seed the state directory on first run — it will be out of sync after OpenClaw writes its own changes, which is expected.
 
 ---
 

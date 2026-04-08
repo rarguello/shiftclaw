@@ -3,7 +3,7 @@ Description=ShiftClaw (OpenClaw on Podman)
 After=network-online.target
 
 [Container]
-Image=ghcr.io/rarguello/shiftclaw:2026.4.5
+Image=ghcr.io/rarguello/shiftclaw:2026.4.8
 ContainerName=shiftclaw
 
 EnvironmentFile=%h/.config/shiftclaw/env
@@ -17,6 +17,7 @@ Volume=%h/.local/share/shiftclaw:/var/lib/openclaw:Z
 Tmpfs=/tmp
 
 PublishPort=18789:18789
+PublishPort=1455:1455
 UserNS=keep-id:uid=1001,gid=1001
 
 [Service]
