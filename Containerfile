@@ -49,6 +49,9 @@ WORKDIR /opt/app-root/src
 COPY --from=builder --chown=1001:0 /opt/app-root/src/node_modules ./node_modules
 
 USER 0
+
+RUN microdnf -y update && microdnf clean all
+
 RUN mkdir -p /var/lib/openclaw \
     && chown 1001:0 /var/lib/openclaw \
     && chmod g=u /var/lib/openclaw
