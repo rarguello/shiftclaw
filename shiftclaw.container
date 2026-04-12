@@ -3,7 +3,7 @@ Description=ShiftClaw (OpenClaw on Podman)
 After=network-online.target
 
 [Container]
-Image=ghcr.io/rarguello/shiftclaw:2026.4.10
+Image=ghcr.io/rarguello/shiftclaw:2026.4.11
 ContainerName=shiftclaw
 
 EnvironmentFile=%h/.config/shiftclaw/env
