@@ -6,7 +6,7 @@
 
 > OpenClaw deployment for OpenShift: UBI 10 · Node.js 24 · OpenRouter · Telegram
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.11-orange)](https://github.com/openclaw/openclaw)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.4.12-orange)](https://github.com/openclaw/openclaw)
 [![UBI 10](https://img.shields.io/badge/Red%20Hat%20UBI-10-EE0000?logo=redhat&logoColor=white)](https://catalog.redhat.com/software/containers/ubi10/nodejs-24-minimal)
 [![Node.js](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![OpenShift](https://img.shields.io/badge/OpenShift-compatible-EE0000?logo=redhatopenshift&logoColor=white)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
@@ -36,10 +36,10 @@ Push to `main` (or tag a release) and GitHub Actions will build the image and pu
 Then update the image reference in `manifests/statefulset.yaml`:
 
 ```yaml
-image: ghcr.io/rarguello/shiftclaw:2026.4.11
+image: ghcr.io/rarguello/shiftclaw:2026.4.12
 ```
 
-### 2 — Create the Secret
+### 2 — Create the namespace and Secret
 
 Never commit real credentials. Create a local `.env` file (already in `.gitignore`):
 
@@ -49,7 +49,13 @@ TELEGRAM_BOT_TOKEN=123456:ABC-...
 OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)
 ```
 
-Apply it to the cluster:
+Create the namespace first (the Secret must land in it):
+
+```bash
+oc apply -f manifests/namespace.yaml
+```
+
+Then create the Secret:
 
 ```bash
 oc create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
@@ -58,10 +64,10 @@ oc create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
 ### 3 — Apply the manifests
 
 ```bash
-oc apply -f manifests/
+oc apply -k manifests/
 ```
 
-This creates the namespace, ServiceAccount, ConfigMap, StatefulSet (with its PVC), NetworkPolicy, PodDisruptionBudget, and Service in one shot.
+This creates the ServiceAccount, ConfigMap, StatefulSet (with its PVC), NetworkPolicy, PodDisruptionBudget, and Service in one shot. Using `-k` (Kustomize) ensures only the tracked manifests are applied and the local `secret.yaml` is never picked up by accident.
 
 ### 4 — Verify
 
@@ -146,7 +152,7 @@ The container image and Pod spec follow a secure-by-default posture:
 - Default seccomp profile (`seccompProfile: RuntimeDefault`)
 - No privilege escalation (`allowPrivilegeEscalation: false`)
 - Dedicated ServiceAccount with no token mounted (`automountServiceAccountToken: false`)
-- NetworkPolicy: default-deny ingress; egress limited to DNS (53) + HTTPS (443)
+- NetworkPolicy: default-deny ingress; egress limited to DNS (5353/UDP to openshift-dns) + HTTPS (443)
 - Secrets never baked into the image — injected at runtime via K8s Secret
 - Every image build is scanned with Trivy; CRITICAL CVEs fail the pipeline
 - SBOM and provenance attestations generated on every push

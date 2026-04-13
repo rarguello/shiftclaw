@@ -2,7 +2,7 @@
 # run.sh — Run shiftclaw locally with Podman (no OpenShift required).
 #
 # Usage:
-#   cp manifests/secret.yaml.template .env   # fill in your real values
+#   cp .env.example .env   # fill in your real values
 #   ./run.sh [IMAGE]
 #
 # If IMAGE is not provided, the published GHCR image is used.
@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.4.11}"
+IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.4.12}"
 CONTAINER_NAME="shiftclaw"
 STATE_DIR="$HOME/.local/share/shiftclaw"
 ENV_FILE="$(dirname "$0")/.env"
@@ -46,5 +46,6 @@ exec podman run \
   --volume "$STATE_DIR:/var/lib/openclaw:Z" \
   --tmpfs /tmp:rw \
   --publish 18789:18789 \
+  --publish 1455:1455 \
   --userns=keep-id:uid=1001,gid=1001 \
   "$IMAGE"

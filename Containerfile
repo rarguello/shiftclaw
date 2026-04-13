@@ -3,7 +3,7 @@
 #
 # Build:
 #   podman build -t shiftclaw:local .
-#   podman build --build-arg OPENCLAW_VERSION=2026.4.11 -t shiftclaw:local .
+#   podman build --build-arg OPENCLAW_VERSION=2026.4.12 -t shiftclaw:local .
 #
 # Multi-stage:
 #   builder  — full UBI 10 Node.js image; npm install + cache stay here.
@@ -12,12 +12,12 @@
 # UBI 10 nodejs-24-minimal ships user 1001 (home /opt/app-root/src, gid 0).
 # OpenShift SCC (restricted) overrides UID at runtime; gid 0 ensures PVC access.
 
-ARG OPENCLAW_VERSION=2026.4.11
+ARG OPENCLAW_VERSION=2026.4.12
 
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
 # ---------------------------------------------------------------------------
-FROM registry.access.redhat.com/ubi10/nodejs-24:latest AS builder
+FROM registry.access.redhat.com/ubi10/nodejs-24:10.1 AS builder
 
 ARG OPENCLAW_VERSION
 
@@ -33,7 +33,7 @@ RUN npm install "openclaw@${OPENCLAW_VERSION}" \
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
 # ---------------------------------------------------------------------------
-FROM registry.access.redhat.com/ubi10/nodejs-24-minimal:latest AS runtime
+FROM registry.access.redhat.com/ubi10/nodejs-24-minimal:10.1 AS runtime
 
 ARG OPENCLAW_VERSION
 
@@ -49,8 +49,6 @@ WORKDIR /opt/app-root/src
 COPY --from=builder --chown=1001:0 /opt/app-root/src/node_modules ./node_modules
 
 USER 0
-
-RUN microdnf -y update && microdnf clean all
 
 RUN mkdir -p /var/lib/openclaw \
     && chown 1001:0 /var/lib/openclaw \

@@ -4,7 +4,6 @@ metadata:
   name: shiftclaw
   labels:
     app.kubernetes.io/name: shiftclaw
-    app.kubernetes.io/version: "2026.4.11"
 spec:
   replicas: 1
   serviceName: shiftclaw
@@ -15,7 +14,6 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: shiftclaw
-        app.kubernetes.io/version: "2026.4.11"
     spec:
       securityContext:
         runAsNonRoot: true
@@ -27,7 +25,7 @@ spec:
       # PVC (writable) on every start, so OpenClaw can write temp files alongside it.
       initContainers:
         - name: init-config
-          image: ghcr.io/rarguello/shiftclaw:2026.4.11
+          image: ghcr.io/rarguello/shiftclaw:2026.4.12
           imagePullPolicy: Always
           command: ["sh", "-c", "[ -f /var/lib/openclaw/openclaw.json ] || cp /run/config/openclaw.json /var/lib/openclaw/openclaw.json"]
           securityContext:
@@ -51,7 +49,7 @@ spec:
               readOnly: true
       containers:
         - name: shiftclaw
-          image: ghcr.io/rarguello/shiftclaw:2026.4.11
+          image: ghcr.io/rarguello/shiftclaw:2026.4.12
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -98,17 +96,27 @@ spec:
               cpu: "1"
               memory: 1Gi
           startupProbe:
-            exec:
-              command: ["openclaw", "--version"]
+            httpGet:
+              path: /healthz
+              port: gateway
+            # Allow up to 60 s for the gateway to start (10 s delay + 10 × 5 s).
             initialDelaySeconds: 10
             periodSeconds: 5
-            failureThreshold: 12  # 60s total startup budget
+            failureThreshold: 10
           livenessProbe:
-            exec:
-              command: ["openclaw", "--version"]
+            httpGet:
+              path: /healthz
+              port: gateway
             periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 3
-
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: gateway
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             # PVC: persistent state + config (both writable — OpenClaw writes temp files)
             - name: shiftclaw-state
