@@ -14,7 +14,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   # Pin the openclaw version here; update to upgrade.
-  OPENCLAW_VERSION: "2026.4.23"
+  OPENCLAW_VERSION: "2026.4.24"
   # Opt into Node.js 24 for all actions now — becomes the default in June 2026.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
