@@ -3,7 +3,7 @@
 #
 # Build:
 #   podman build -t shiftclaw:local .
-#   podman build --build-arg OPENCLAW_VERSION=2026.4.24 -t shiftclaw:local .
+#   podman build --build-arg OPENCLAW_VERSION=2026.5.7 -t shiftclaw:local .
 #
 # Multi-stage:
 #   builder  — full UBI 10 Node.js image; npm install + cache stay here.
@@ -12,7 +12,7 @@
 # UBI 10 nodejs-24-minimal ships user 1001 (home /opt/app-root/src, gid 0).
 # OpenShift SCC (restricted) overrides UID at runtime; gid 0 ensures PVC access.
 
-ARG OPENCLAW_VERSION=2026.4.24
+ARG OPENCLAW_VERSION=2026.5.7
 
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
