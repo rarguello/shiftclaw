@@ -17,7 +17,7 @@ ARG OPENCLAW_VERSION=2026.7.1-2
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
 # ---------------------------------------------------------------------------
-FROM registry.access.redhat.com/ubi10/nodejs-24:10.1 AS builder
+FROM registry.access.redhat.com/ubi10/nodejs-24:10.2 AS builder
 
 ARG OPENCLAW_VERSION
 
@@ -33,7 +33,7 @@ RUN npm install "openclaw@${OPENCLAW_VERSION}" \
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
 # ---------------------------------------------------------------------------
-FROM registry.access.redhat.com/ubi10/nodejs-24-minimal:10.1 AS runtime
+FROM registry.access.redhat.com/ubi10/nodejs-24-minimal:10.2 AS runtime
 
 ARG OPENCLAW_VERSION
 
