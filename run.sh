@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.6.9}"
+IMAGE="${1:-ghcr.io/rarguello/shiftclaw:2026.7.1-2}"
 CONTAINER_NAME="shiftclaw"
 STATE_DIR="$HOME/.local/share/shiftclaw"
 ENV_FILE="$(dirname "$0")/.env"
