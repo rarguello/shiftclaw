@@ -28,6 +28,17 @@ on:
           - "Containerfile"
           - "Containerfile.hi"
 
+# Queues runs targeting the same ref instead of letting them race. Without
+# this, several near-simultaneous pushes to main (e.g. merging a batch of
+# Dependabot PRs) each run their own build+scan+promote concurrently, and
+# whichever "promote" job finishes last wins `latest` — regardless of
+# which commit is actually newest. Queuing (not cancelling) means every
+# commit still gets a full, real result, just in trigger order, so the
+# last-pushed commit's promote is guaranteed to run last.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
