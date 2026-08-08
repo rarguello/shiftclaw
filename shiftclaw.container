@@ -3,7 +3,13 @@ Description=ShiftClaw (OpenClaw on Podman)
 After=network-online.target
 
 [Container]
-Image=ghcr.io/rarguello/shiftclaw:2026.6.34
+# `latest` only moves once a build boots cleanly and passes the CVE scan
+# (see .github/workflows/build.yaml) — safe to track directly. Requires
+# `systemctl --user enable --now podman-auto-update.timer` to actually
+# auto-update; otherwise this just affects what a manual restart pulls.
+Image=ghcr.io/rarguello/shiftclaw:latest
+Pull=always
+AutoUpdate=registry
 ContainerName=shiftclaw
 
 EnvironmentFile=%h/.config/shiftclaw/env

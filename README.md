@@ -198,6 +198,12 @@ systemctl --user daemon-reload
 systemctl --user enable --now shiftclaw
 ```
 
+The Quadlet tracks `:latest` and pulls on every restart. For it to update automatically, enable Podman's own timer:
+
+```bash
+systemctl --user enable --now podman-auto-update.timer
+```
+
 ### Useful commands
 
 ```bash
