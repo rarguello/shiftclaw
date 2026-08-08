@@ -95,25 +95,27 @@ spec:
               # Raise cpu/memory if you enable browser automation or heavy tool use.
               cpu: "1"
               memory: 1Gi
+          # OpenClaw's gateway has no HTTP /healthz or /readyz endpoints —
+          # health checks are CLI-only (`openclaw health`, `openclaw
+          # gateway status`). All three probes exec into the container and
+          # ask the CLI, which talks to the gateway over its local
+          # WebSocket.
           startupProbe:
-            httpGet:
-              path: /healthz
-              port: gateway
+            exec:
+              command: ["openclaw", "health"]
             # Allow up to 60 s for the gateway to start (10 s delay + 10 × 5 s).
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 10
           livenessProbe:
-            httpGet:
-              path: /healthz
-              port: gateway
+            exec:
+              command: ["openclaw", "health"]
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /readyz
-              port: gateway
+            exec:
+              command: ["openclaw", "health"]
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
