@@ -34,7 +34,7 @@ ARG OPENCLAW_VERSION=2026.6.34
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
 # ---------------------------------------------------------------------------
-FROM registry.access.redhat.com/ubi10/nodejs-24:10.1 AS builder
+FROM registry.access.redhat.com/ubi10/nodejs-24:10.2 AS builder
 
 ARG OPENCLAW_VERSION
 
