@@ -12,9 +12,9 @@
 [![OpenShift](https://img.shields.io/badge/OpenShift-compatible-EE0000?logo=redhatopenshift&logoColor=white)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-This repository contains everything needed to run [OpenClaw](https://github.com/openclaw/openclaw) as a Pod on an OpenShift/OKD cluster. The custom container image is built on **Red Hat UBI 10 + Node.js 24** (not Debian, not Ubuntu), hardened by default, and published to GHCR via GitHub Actions.
+Runs [OpenClaw](https://github.com/openclaw/openclaw) as a Pod on OpenShift/OKD, or as a systemd/Podman Quadlet on a Linux host with systemd and Podman. Built on Red Hat UBI 10 + Node.js 24 (not Debian, not Ubuntu), hardened by default, published to GHCR via GitHub Actions.
 
-The deployment is managed through Telegram — no Ingress or Route is needed.
+Agent interaction is through Telegram — no Ingress or Route needed.
 
 ---
 
@@ -31,9 +31,9 @@ The deployment is managed through Telegram — no Ingress or Route is needed.
 
 ### 1 — Build and push the image
 
-Push to `main` (or tag a release) and GitHub Actions will build the image and publish it to `ghcr.io/rarguello/shiftclaw`. No manual `podman build` needed.
+Push to `main` (or tag a release); GitHub Actions builds and publishes to `ghcr.io/rarguello/shiftclaw`.
 
-Then update the image reference in `manifests/statefulset.yaml`:
+Update the image reference in `manifests/statefulset.yaml`:
 
 ```yaml
 image: ghcr.io/rarguello/shiftclaw:2026.6.34
@@ -41,23 +41,20 @@ image: ghcr.io/rarguello/shiftclaw:2026.6.34
 
 ### 2 — Create the namespace and Secret
 
-Never commit real credentials. Create a local `.env` file (already in `.gitignore`):
+Create a local `.env` file (gitignored). `oc create secret --from-env-file` reads it literally — generate the gateway token first, then paste the value in:
+
+```bash
+openssl rand -hex 32
+```
 
 ```
 OPENROUTER_API_KEY=sk-or-...
 TELEGRAM_BOT_TOKEN=123456:ABC-...
-OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)
+OPENCLAW_GATEWAY_TOKEN=<paste the generated value>
 ```
-
-Create the namespace first (the Secret must land in it):
 
 ```bash
 oc apply -f manifests/namespace.yaml
-```
-
-Then create the Secret:
-
-```bash
 oc create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
 ```
 
@@ -67,7 +64,7 @@ oc create secret generic shiftclaw --from-env-file=.env --namespace=shiftclaw
 oc apply -k manifests/
 ```
 
-This creates the ServiceAccount, ConfigMap, StatefulSet (with its PVC), NetworkPolicy, PodDisruptionBudget, and Service in one shot. Using `-k` (Kustomize) ensures only the tracked manifests are applied and the local `secret.yaml` is never picked up by accident.
+Creates the ServiceAccount, ConfigMap, StatefulSet, NetworkPolicy, PodDisruptionBudget, and Service. `secret.yaml` is excluded from `kustomization.yaml` on purpose — it's never committed.
 
 ### 4 — Verify
 
@@ -78,22 +75,20 @@ oc logs -l app.kubernetes.io/name=shiftclaw -n shiftclaw -f
 
 ### 5 — Approve the Telegram bot
 
-On first start, OpenClaw requires manual approval of the Telegram channel pairing. Open a shell into the running pod and run:
+First start requires approving the Telegram pairing:
 
 ```bash
 oc exec -it shiftclaw-0 -n shiftclaw -- sh
 openclaw pairing approve telegram <PAIRING_CODE>
 ```
 
-The pairing code appears in the pod logs. Once approved the bot starts responding and the approval is persisted on the PVC — it does not need to be repeated on restart.
+Pairing code is in the pod logs. Persisted on the PVC — one-time only.
 
 ---
 
 ## Access
 
-ShiftClaw is managed through Telegram — just talk to your bot. No Route or Ingress is required.
-
-If you need local access to the WebSocket gateway (port 18789):
+Agent interaction is through Telegram. For local access to the gateway (port 18789):
 
 ```bash
 oc port-forward pod/shiftclaw-0 18789:18789 -n shiftclaw
@@ -111,23 +106,19 @@ oc port-forward pod/shiftclaw-0 18789:18789 -n shiftclaw
 | `manifests/networkpolicy.yaml` | Default-deny ingress; egress limited to DNS + HTTPS only |
 | `manifests/poddisruptionbudget.yaml` | Signals voluntary-disruption intent to the scheduler |
 | `manifests/statefulset.yaml` | StatefulSet — resource limits, probes, security context, PVC template |
-| `.github/workflows/build.yaml` | OpenClaw version pin and image build settings |
+| `package.json` | Pins the OpenClaw npm version the build reads (Dependabot tracks this) |
 
 Edit `config/openclaw.json` to change the model, enable/disable channels, or tune agent parameters.
 
-The config is seeded from the ConfigMap **only on first start** — OpenClaw edits its own config at runtime and those changes are preserved across restarts. To apply a ConfigMap change to a running deployment, delete the live config from the PVC so the init container re-seeds it on next start:
+Config is seeded from the ConfigMap on first start only — OpenClaw owns it at runtime after that. To apply a ConfigMap change, delete the live config so the init container re-seeds it:
 
 ```bash
-# 1 — Update the ConfigMap
 oc create configmap shiftclaw-config \
   --from-file=openclaw.json=config/openclaw.json \
   --namespace=shiftclaw \
   --dry-run=client -o yaml | oc apply -f -
 
-# 2 — Delete the live config so the init container re-seeds it
 oc exec shiftclaw-0 -n shiftclaw -- rm /var/lib/openclaw/openclaw.json
-
-# 3 — Restart
 oc rollout restart statefulset/shiftclaw -n shiftclaw
 ```
 
@@ -135,16 +126,14 @@ oc rollout restart statefulset/shiftclaw -n shiftclaw
 
 ## Upgrading OpenClaw
 
-1. Update `OPENCLAW_VERSION` in `.github/workflows/build.yaml`
-2. Update the `image:` tag in `manifests/statefulset.yaml`
-3. Push — CI builds and publishes the new image automatically
-4. `oc apply -f manifests/statefulset.yaml` (or `oc apply -k manifests/`)
+1. Update the `openclaw` version in `package.json` (or merge the Dependabot PR) — this is what the build actually reads
+2. Push — CI builds, boot-tests, scans, and publishes automatically; `latest` only moves once all three pass
+3. Update the version string everywhere else it's referenced for documentation/deployment purposes: `manifests/statefulset.yaml` (both `image:` fields), `shiftclaw.container`, `run.sh`, and the README badge/examples
+4. `oc apply -k manifests/`
 
 ---
 
 ## Security
-
-The container image and Pod spec follow a secure-by-default posture:
 
 - Non-root process (`runAsNonRoot: true`) — OpenShift SCC assigns the UID
 - Read-only root filesystem (`readOnlyRootFilesystem: true`)
@@ -161,13 +150,13 @@ The container image and Pod spec follow a secure-by-default posture:
 
 ## Running as a systemd user service (Quadlet)
 
-This is the recommended way to run ShiftClaw persistently on a Linux desktop or server — no OpenShift required, no root required.
+Recommended for running ShiftClaw persistently outside OpenShift — no root required.
 
-Quadlet is a Podman feature (4.4+) that lets systemd manage containers directly. You write a `.container` file and systemd handles start, stop, and restart.
+Quadlet (Podman 4.4+) lets systemd manage containers directly from a `.container` file.
 
 ### Prerequisites
 
-Same as the local Podman section below: an OpenRouter API key, a Telegram bot token, and Podman installed. No `sudo` needed for any of these steps.
+Same as [Testing locally with Podman](#testing-locally-with-podman) below: OpenRouter API key, Telegram bot token, Podman installed.
 
 ### 1 — Seed the state directory (one-time)
 
@@ -176,7 +165,7 @@ mkdir -p ~/.local/share/shiftclaw
 cp config/openclaw.json ~/.local/share/shiftclaw/openclaw.json
 ```
 
-OpenClaw will manage this file at runtime. You only need to copy it once — if the file already exists it will not be overwritten.
+OpenClaw manages this file at runtime after the first copy.
 
 ### 2 — Create the env file (one-time)
 
@@ -185,7 +174,7 @@ mkdir -p ~/.config/shiftclaw
 cp .env.example ~/.config/shiftclaw/env
 ```
 
-Open `~/.config/shiftclaw/env` and fill in your real values. This file lives outside the project directory so there is no risk of accidentally committing it.
+Fill in real values. Lives outside the repo.
 
 ### 3 — Install the Quadlet file
 
@@ -196,7 +185,7 @@ cp shiftclaw.container ~/.config/containers/systemd/
 
 ### 4 — Enable linger
 
-Linger allows your user services to start at boot and keep running after you log out. Run this as your regular user — no `sudo`:
+Lets user services start at boot and survive logout:
 
 ```bash
 loginctl enable-linger
@@ -225,64 +214,43 @@ systemctl --user restart shiftclaw
 
 ---
 
-## Using OpenAI Codex (ChatGPT subscription, no API key)
+## Using a ChatGPT subscription (no API key)
 
-If you have a ChatGPT Plus, Pro, or Team subscription you can use OpenAI Codex directly — no OpenAI API key or per-token billing required. OpenClaw authenticates via OAuth using your existing ChatGPT account.
+Use a ChatGPT Plus/Pro/Business subscription instead of API billing — OpenClaw authenticates via OAuth.
 
 ### 1 — Log in
 
-Run this inside the container (it must be running):
+Container must be running:
 
 ```bash
-podman exec -it shiftclaw openclaw models auth login --provider openai-codex
+podman exec -it shiftclaw openclaw models auth login --provider openai
 ```
 
-OpenClaw prints an OAuth URL. Open it in your browser, log in with your ChatGPT account, and authorize the app. The browser will then redirect to a `http://localhost:1455/...` URL — copy that full URL from the address bar and paste it back into the terminal where you ran the `podman exec` command. The credentials are saved to your state directory and persist across restarts — you only need to do this once.
+Open the printed URL, log in with your ChatGPT account, authorize. It redirects to a `http://localhost:1455/...` URL — copy that full URL back into the terminal. One-time; credentials persist in the state directory.
 
-### 2 — Set Codex as the default model
+### 2 — Set it as the default model
 
 ```bash
-podman exec -it shiftclaw openclaw models set openai-codex/gpt-5.4
+podman exec -it shiftclaw openclaw config set agents.defaults.model.primary openai/gpt-5.5
 ```
 
 ### 3 — Verify
 
 ```bash
-podman exec -it shiftclaw openclaw models status --plain
+podman exec -it shiftclaw openclaw models list --provider openai
 ```
 
-It should show `openai-codex/gpt-5.4` as the active model. Send a message to your Telegram bot to confirm.
-
-> **Note:** OpenClaw manages the live config file at runtime. The `config/openclaw.json` in this repo is only used to seed the state directory on first run — it will be out of sync after OpenClaw writes its own changes, which is expected.
+> `config/openclaw.json` only seeds state on first run — OpenClaw owns it afterward. Drift from the repo copy is expected.
 
 ---
 
 ## Testing locally with Podman
 
-You don't need an OpenShift cluster to try ShiftClaw. This section walks through everything from scratch.
-
 ### Prerequisites
 
-**1. OpenRouter API key**
-
-OpenRouter gives the bot access to AI models (Gemini, Claude, Llama, etc.).
-
-1. Create a free account at [openrouter.ai](https://openrouter.ai)
-2. Go to **Keys** → **Create key**
-3. Copy the key — it starts with `sk-or-`
-
-**2. Telegram bot token**
-
-1. Open Telegram and search for **@BotFather**
-2. Send `/newbot`
-3. Choose a display name (e.g. `My ShiftClaw Bot`) and a username ending in `bot` (e.g. `myshiftclaw_bot`)
-4. BotFather replies with a token like `123456789:ABCdef...` — copy it
-
-**3. Podman**
-
-Install Podman for your OS: [podman.io/docs/installation](https://podman.io/docs/installation)
-
----
+- **OpenRouter API key** — [openrouter.ai](https://openrouter.ai) → Keys → Create key (`sk-or-...`)
+- **Telegram bot token** — message [@BotFather](https://t.me/BotFather), `/newbot`
+- **Podman** — [podman.io/docs/installation](https://podman.io/docs/installation)
 
 ### 1 — Create your `.env` file
 
@@ -290,7 +258,7 @@ Install Podman for your OS: [podman.io/docs/installation](https://podman.io/docs
 cp .env.example .env
 ```
 
-Open `.env` and replace the placeholder values:
+Fill in the values (each is explained in `.env.example`):
 
 ```
 OPENROUTER_API_KEY=sk-or-...
@@ -298,65 +266,45 @@ TELEGRAM_BOT_TOKEN=123456789:ABCdef...
 OPENCLAW_GATEWAY_TOKEN=any-random-string
 ```
 
-Each variable is explained in the `.env.example` file.
-
----
-
 ### 2 — Build the image locally (optional)
 
-If you want to test your own code changes instead of the published image:
+For local code changes:
 
 ```bash
 podman build -t localhost/shiftclaw:dev .
 ```
 
-Skip this step if you just want to run the published image.
-
----
-
 ### 3 — Run the container
 
 ```bash
-# Using the published image:
+# Published image:
 ./run.sh
 
-# Using your locally built image:
+# Locally built image:
 ./run.sh localhost/shiftclaw:dev
 ```
 
-The script:
-- Seeds `~/.local/share/shiftclaw/` with `config/openclaw.json` on the first run
-- Mounts that directory persistently so state survives restarts
-- Loads your secrets from `.env`
-- Exposes the gateway on `http://localhost:18789`
-
-On first run Podman will pull the image — this takes a minute. After that you should see log lines ending with `[gateway] ready`.
-
----
+The script seeds `~/.local/share/shiftclaw/` with `config/openclaw.json`, mounts it persistently, loads secrets from `.env`, and exposes the gateway on `http://localhost:18789`. Look for `[gateway] ready` in the logs.
 
 ### 4 — Approve the Telegram pairing
 
-The first time the bot starts it prints a pairing code in the logs:
+First start prints a pairing code:
 
 ```
 [telegram] pairing code: 123456
 ```
 
-Approve it by running this in a second terminal (container must be running):
+Approve it (container must be running):
 
 ```bash
 podman exec shiftclaw openclaw pairing approve telegram 123456
 ```
 
-The approval is saved to `~/.local/share/shiftclaw/` and is not needed again after a restart.
-
----
+Saved to state — one-time only.
 
 ### 5 — Talk to your bot
 
-Open Telegram, find the bot you created with BotFather, and send it a message. That's it.
-
-To stop the container press `Ctrl+C` in the terminal where `run.sh` is running.
+Message your bot in Telegram. `Ctrl+C` to stop.
 
 ---
 
