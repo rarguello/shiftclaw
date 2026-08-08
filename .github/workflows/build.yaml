@@ -9,6 +9,24 @@ on:
   pull_request:
     branches:
       - main
+  # Manual, on-demand builds — e.g. testing a pre-release OpenClaw version or
+  # the experimental Containerfile.hi (Red Hat Hardened Images) base. Always
+  # pushed (so it's pullable from GHCR) but tagged distinctly and NEVER
+  # promoted to `latest` — see the "promote" job's condition below.
+  workflow_dispatch:
+    inputs:
+      openclaw_version:
+        description: "OpenClaw npm version to build (blank = use package.json's pinned version)"
+        required: false
+        default: ""
+      containerfile:
+        description: "Which Containerfile to build"
+        required: false
+        type: choice
+        default: "Containerfile"
+        options:
+          - "Containerfile"
+          - "Containerfile.hi"
 
 env:
   REGISTRY: ghcr.io
@@ -39,9 +57,16 @@ jobs:
 
       # Single source of truth for the OpenClaw version: package.json exists
       # only so Dependabot can open a PR bumping it. Nothing here ever runs
-      # `npm install` against it.
-      - name: Read OpenClaw version from package.json
-        run: echo "OPENCLAW_VERSION=$(jq -r .dependencies.openclaw package.json)" >> "$GITHUB_ENV"
+      # `npm install` against it. A manual workflow_dispatch run can
+      # override it to test a specific (e.g. pre-release) version instead.
+      - name: Resolve OpenClaw version and Containerfile
+        run: |
+          VERSION="${{ inputs.openclaw_version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(jq -r .dependencies.openclaw package.json)"
+          fi
+          echo "OPENCLAW_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "CONTAINERFILE=${{ inputs.containerfile || 'Containerfile' }}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -62,16 +87,20 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             # Semantic version tag from git tag (e.g. v2026.4.2 → 2026.4.2)
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},enable=${{ github.event_name != 'workflow_dispatch' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name != 'workflow_dispatch' }}
             # openclaw upstream version embedded in every image
-            type=raw,value=${{ env.OPENCLAW_VERSION }}
+            type=raw,value=${{ env.OPENCLAW_VERSION }},enable=${{ github.event_name != 'workflow_dispatch' }}
             # Short SHA for traceability
-            type=sha,prefix=sha-,format=short
+            type=sha,prefix=sha-,format=short,enable=${{ github.event_name != 'workflow_dispatch' }}
+            # Manual/experimental builds get their own clearly-labeled tag
+            # instead — never mixed into the version/semver tag namespace.
+            type=raw,value=manual-${{ github.run_id }},enable=${{ github.event_name == 'workflow_dispatch' }}
           # NOTE: no `latest` tag here on purpose. `latest` only gets moved
           # by the separate "promote" job below, and only after this image
           # boots cleanly and Trivy comes back clean — so `latest` always
-          # points at a known-good image.
+          # points at a known-good image. Manual builds never reach that
+          # job at all (see its `if:` condition).
           labels: |
             org.opencontainers.image.title=OpenClaw
             org.opencontainers.image.description=OpenClaw autonomous AI agent on UBI 10 + Node.js 24
@@ -87,7 +116,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Containerfile
+          file: ${{ env.CONTAINERFILE }}
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -108,9 +137,9 @@ jobs:
 
       # Boots the image with no config/volume — the same "brand new install"
       # path a first-time user hits — and fails the job if it doesn't reach
-      # "[gateway] ready" quickly. This is the check that would have caught
-      # both the 2026-08-08 SQLite/Node-engine gate failure and a bad base
-      # image bump before either one ever reached `latest`.
+      # "[gateway] ready" quickly. Catches a broken base image or a runtime
+      # that can't satisfy OpenClaw's own startup requirements before
+      # either one ever reaches `latest`.
       - name: Smoke-test image boot
         env:
           IMAGE_TO_TEST: >-

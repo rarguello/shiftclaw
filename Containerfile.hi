@@ -1,0 +1,87 @@
+# ShiftClaw — experimental build on Red Hat Hardened Images (hi/nodejs)
+#
+# NOT used for the default build or for anything tagged `latest`. This
+# exists to keep validating the eventual migration target without
+# betting production on it. Build manually via the "Build image (manual)"
+# workflow_dispatch job in .github/workflows/build.yaml, or locally:
+#
+#   podman build -f Containerfile.hi --build-arg OPENCLAW_VERSION=2026.7.2-beta.7 -t shiftclaw:hi-test .
+#
+# Why this isn't the default yet:
+# - registry.access.redhat.com/hi/nodejs satisfies OpenClaw's SQLite
+#   WAL-safety requirement (introduced in OpenClaw 2026.7.1) where UBI
+#   10's nodejs-24(-minimal) does not — confirmed Node 26.7.0 / SQLite
+#   3.53.4 vs UBI 10's SQLite 3.46.1 on both the 10.1 and 10.2 tags.
+# - But OpenClaw >= 2026.7.1 has a separate, unresolved upstream bug
+#   (https://github.com/openclaw/openclaw/issues/109831): a startup
+#   migration path can SIGSEGV against a real, populated state directory
+#   with a full plugin/channel set. Reproduces on this base too — it is
+#   not a Hardened Images problem, but it blocks shipping this as the
+#   default until fixed upstream.
+# - hi/nodejs's `:latest` tag is documented by Red Hat as a testing tag,
+#   not a production one, and rebuilds roughly daily. A real migration
+#   should pin `<version>@sha256:<digest>` instead.
+# - Node 26 is Node's "Current" release line, not LTS until October 2026.
+# - The runtime image ships no shell, npm, or compilers — any native
+#   addon or plugin shell-out OpenClaw's plugins use needs auditing
+#   before this becomes the default.
+#
+# hi/nodejs ships user 65532 (home /app, gid 0) — the OpenShift
+# arbitrary-UID convention (arbitrary UID, group 0) out of the box.
+
+ARG OPENCLAW_VERSION=2026.6.34
+
+# ---------------------------------------------------------------------------
+# Stage 1 — builder
+# ---------------------------------------------------------------------------
+FROM registry.access.redhat.com/hi/nodejs:latest-builder AS builder
+
+ARG OPENCLAW_VERSION
+
+WORKDIR /app
+
+USER 0
+RUN npm install "openclaw@${OPENCLAW_VERSION}" \
+        --omit=dev \
+        --no-audit \
+        --no-fund \
+    && npm cache clean --force
+
+# ---------------------------------------------------------------------------
+# Stage 2 — runtime
+# ---------------------------------------------------------------------------
+FROM registry.access.redhat.com/hi/nodejs:latest AS runtime
+
+ARG OPENCLAW_VERSION
+
+LABEL org.opencontainers.image.title="ShiftClaw (Hardened Images experiment)" \
+      org.opencontainers.image.description="OpenClaw autonomous AI agent — Red Hat Hardened Node.js (not production-ready, see Containerfile.hi)" \
+      org.opencontainers.image.version="${OPENCLAW_VERSION}" \
+      org.opencontainers.image.source="https://github.com/openclaw/openclaw" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.base.name="registry.access.redhat.com/hi/nodejs"
+
+WORKDIR /app
+
+COPY --from=builder --chown=65532:0 /app/node_modules ./node_modules
+
+USER 0
+
+RUN mkdir -p /var/lib/openclaw \
+    && chown 65532:0 /var/lib/openclaw \
+    && chmod g=u /var/lib/openclaw
+
+USER 65532
+
+ENV OPENCLAW_VERSION=${OPENCLAW_VERSION} \
+    XDG_CONFIG_HOME=/var/lib/openclaw \
+    OPENCLAW_CONFIG_PATH=/var/lib/openclaw/openclaw.json \
+    NODE_ENV=production \
+    NPM_CONFIG_CACHE=/tmp/.npm \
+    # HOME must be writable; with readOnlyRootFilesystem the default /app is read-only.
+    HOME=/var/lib/openclaw \
+    PATH="/app/node_modules/.bin:$PATH"
+
+EXPOSE 18789
+
+ENTRYPOINT ["openclaw", "gateway", "--allow-unconfigured"]
