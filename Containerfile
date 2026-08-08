@@ -3,7 +3,7 @@
 #
 # Build:
 #   podman build -t shiftclaw:local .
-#   podman build --build-arg OPENCLAW_VERSION=2026.7.1-2 -t shiftclaw:local .
+#   podman build --build-arg OPENCLAW_VERSION=2026.6.34 -t shiftclaw:local .
 #
 # Multi-stage:
 #   builder  — full UBI 10 Node.js image; npm install + cache stay here.
@@ -11,8 +11,18 @@
 #
 # UBI 10 nodejs-24-minimal ships user 1001 (home /opt/app-root/src, gid 0).
 # OpenShift SCC (restricted) overrides UID at runtime; gid 0 ensures PVC access.
+#
+# OPENCLAW_VERSION IS PINNED BELOW 2026.7.1 ON PURPOSE. Since v2026.7.1,
+# OpenClaw refuses to start on Node runtimes without SQLite 3.51.3+ (or
+# patched 3.44.6+/3.50.7+), for WAL-safety. UBI 10's nodejs-24(-minimal)
+# reports SQLite 3.46.1 regardless of Node point version, so it fails
+# that gate — do not bump OPENCLAW_VERSION past 2026.6.34 on this base
+# image without re-verifying `node -p process.versions.sqlite` in the
+# runtime image first. See the Red Hat Hardened Images investigation
+# (registry.access.redhat.com/hi/nodejs) for the intended long-term fix —
+# blocked pending a segfault repro against real production config.
 
-ARG OPENCLAW_VERSION=2026.7.1-2
+ARG OPENCLAW_VERSION=2026.6.34
 
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
