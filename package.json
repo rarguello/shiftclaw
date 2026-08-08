@@ -1,0 +1,8 @@
+{
+  "name": "shiftclaw-version-tracking",
+  "private": true,
+  "description": "Not a Node project — this file exists only so Dependabot can track the OpenClaw npm version pinned in the Containerfile's OPENCLAW_VERSION build-arg. The build workflow reads dependencies.openclaw from here instead of a hardcoded version string. Never run npm install against this file.",
+  "dependencies": {
+    "openclaw": "2026.6.34"
+  }
+}

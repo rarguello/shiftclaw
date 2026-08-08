@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # Base image (registry.access.redhat.com/ubi10/nodejs-24*, or whatever the
+  # Containerfile's FROM lines point at — this will start tracking Red Hat
+  # Hardened Images automatically once the Containerfile migrates there).
+  #
+  # A base image bump can silently change the bundled Node.js/SQLite build
+  # underneath OpenClaw. Only merge these PRs once the "Build image" check
+  # in build.yaml (which boots the built image before it can pass) is
+  # green — branch protection on main requires it.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(base-image)"
+    labels:
+      - "dependencies"
+      - "base-image"
+
+  # The `openclaw` npm package version pinned via package.json, which
+  # build.yaml reads into the OPENCLAW_VERSION build-arg. package.json
+  # itself is never installed/run — it's a Dependabot anchor only.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(openclaw)"
+    labels:
+      - "dependencies"
+      - "openclaw-version"
+
+  # GitHub Actions used by build.yaml (actions/checkout, docker/*, etc).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(actions)"
+    labels:
+      - "dependencies"
+      - "github-actions"

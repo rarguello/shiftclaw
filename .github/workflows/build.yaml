@@ -13,14 +13,12 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # Pin the openclaw version here; update to upgrade.
-  OPENCLAW_VERSION: "2026.6.34"
   # Opt into Node.js 24 for all actions now — becomes the default in June 2026.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Build (and push on main/tags)
+  # Build, boot-test, and push (push/promote skipped on PRs)
   # ---------------------------------------------------------------------------
   build:
     name: Build image
@@ -28,8 +26,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      # Required to upload SARIF results to the Security tab.
-      security-events: write
       # Required for SBOM / provenance attestation.
       id-token: write
 
@@ -40,6 +36,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Single source of truth for the OpenClaw version: package.json exists
+      # only so Dependabot can open a PR bumping it. Nothing here ever runs
+      # `npm install` against it.
+      - name: Read OpenClaw version from package.json
+        run: echo "OPENCLAW_VERSION=$(jq -r .dependencies.openclaw package.json)" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,34 +68,87 @@ jobs:
             type=raw,value=${{ env.OPENCLAW_VERSION }}
             # Short SHA for traceability
             type=sha,prefix=sha-,format=short
-            # latest only on main branch pushes
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          # NOTE: no `latest` tag here on purpose. `latest` only gets moved
+          # by the separate "promote" job below, and only after this image
+          # boots cleanly and Trivy comes back clean — so `latest` always
+          # points at a known-good image.
           labels: |
             org.opencontainers.image.title=OpenClaw
             org.opencontainers.image.description=OpenClaw autonomous AI agent on UBI 10 + Node.js 24
             org.opencontainers.image.vendor=shiftclaw
             org.opencontainers.image.licenses=MIT
 
-      - name: Build and push
+      # PRs build a single-platform image loaded into the local Docker
+      # daemon (never pushed) so it can still be boot-tested below. Pushes
+      # build the real multi-platform image and push everything except
+      # `latest`.
+      - name: Build (and push except `latest`)
         id: build-push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Containerfile
-          # Push only on main branch or tag pushes — never on PRs.
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             OPENCLAW_VERSION=${{ env.OPENCLAW_VERSION }}
-          # Multi-platform: amd64 for standard x86 clusters, arm64 for Graviton/Apple M1 nodes.
-          platforms: linux/amd64,linux/arm64
+          # Multi-platform only when pushing — `load` only supports a single
+          # platform, and PRs never need arm64 to prove the image boots.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           # GitHub Actions layer cache — dramatically speeds up repeat builds.
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Generate SBOM and provenance attestation for supply-chain security.
-          provenance: true
-          sbom: true
+          # (Only meaningful — and only supported by build-push-action — on
+          # a real push, not a local --load build.)
+          provenance: ${{ github.event_name != 'pull_request' }}
+          sbom: ${{ github.event_name != 'pull_request' }}
+
+      # Boots the image with no config/volume — the same "brand new install"
+      # path a first-time user hits — and fails the job if it doesn't reach
+      # "[gateway] ready" quickly. This is the check that would have caught
+      # both the 2026-08-08 SQLite/Node-engine gate failure and a bad base
+      # image bump before either one ever reached `latest`.
+      - name: Smoke-test image boot
+        env:
+          IMAGE_TO_TEST: >-
+            ${{ github.event_name == 'pull_request'
+                && fromJSON(steps.meta.outputs.json).tags[0]
+                || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-push.outputs.digest) }}
+        run: |
+          set -euo pipefail
+          echo "Testing: $IMAGE_TO_TEST"
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker pull "$IMAGE_TO_TEST"
+          fi
+          docker run -d --name smoke-test \
+            --env OPENCLAW_GATEWAY_TOKEN=ci-smoke-test-token \
+            "$IMAGE_TO_TEST"
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if docker logs smoke-test 2>&1 | grep -q '\[gateway\] ready'; then
+              ready=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' smoke-test)" != "true" ]; then
+              echo "::error::Container exited before reaching ready (exit code $(docker inspect -f '{{.State.ExitCode}}' smoke-test))"
+              break
+            fi
+            sleep 2
+          done
+
+          echo "--- container logs ---"
+          docker logs smoke-test 2>&1
+          docker rm -f smoke-test >/dev/null 2>&1 || true
+
+          if [ "$ready" != "1" ]; then
+            echo "::error::Image never printed '[gateway] ready' within 60s"
+            exit 1
+          fi
+          echo "Smoke test passed: gateway reached ready."
 
   # ---------------------------------------------------------------------------
   # Security scan — runs on main branch and tag pushes only (not on PRs,
@@ -145,3 +200,33 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: trivy
+
+  # ---------------------------------------------------------------------------
+  # Promote to `latest`. Only runs once the image has booted cleanly
+  # (build job's smoke test) and passed the CVE gate (scan), and only for
+  # pushes to main (never PRs, never tag releases).
+  # ---------------------------------------------------------------------------
+  promote:
+    name: Promote to latest
+    needs: [build, scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag the already-built manifest as latest
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            ${{ needs.build.outputs.image-ref }}

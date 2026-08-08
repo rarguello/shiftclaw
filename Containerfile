@@ -5,6 +5,11 @@
 #   podman build -t shiftclaw:local .
 #   podman build --build-arg OPENCLAW_VERSION=2026.6.34 -t shiftclaw:local .
 #
+# The ARG default below is only a fallback for local `podman build` runs
+# with no --build-arg. CI (.github/workflows/build.yaml) always passes
+# --build-arg OPENCLAW_VERSION read from package.json's "openclaw"
+# dependency — that's the real source of truth, and what Dependabot bumps.
+#
 # Multi-stage:
 #   builder  — full UBI 10 Node.js image; npm install + cache stay here.
 #   runtime  — minimal UBI 10 Node.js image; only node_modules copied in.
@@ -18,9 +23,11 @@
 # reports SQLite 3.46.1 regardless of Node point version, so it fails
 # that gate — do not bump OPENCLAW_VERSION past 2026.6.34 on this base
 # image without re-verifying `node -p process.versions.sqlite` in the
-# runtime image first. See the Red Hat Hardened Images investigation
-# (registry.access.redhat.com/hi/nodejs) for the intended long-term fix —
-# blocked pending a segfault repro against real production config.
+# runtime image first. registry.access.redhat.com/hi/nodejs (Red Hat
+# Hardened Images) does satisfy the gate, but see
+# https://github.com/openclaw/openclaw/issues/109831 — a startup-migration
+# refusal path can still SIGSEGV with a full plugin/channel set on that
+# base, unresolved upstream as of this writing.
 
 ARG OPENCLAW_VERSION=2026.6.34
 
