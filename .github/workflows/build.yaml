@@ -124,7 +124,7 @@ jobs:
       # `latest`.
       - name: Build (and push except `latest`)
         id: build-push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ env.CONTAINERFILE }}
